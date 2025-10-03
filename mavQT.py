@@ -12,7 +12,7 @@ from PyQt6.QtCore import pyqtSignal, QObject, QTimer, Qt
 import paho.mqtt.client as mqtt
 from pymavlink import mavutil
 
-MAX_TOPIC_ITEMS = 20  # Limit for topics display
+MAX_TOPIC_ITEMS = 20  # Limit for topics 
 
 # ------------------- MAVLink Receiver ------------------- #
 class MAVLinkReceiver(QObject):
@@ -49,7 +49,7 @@ class MAVLinkReceiver(QObject):
 class MAVMQTTUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("MAVLink -> MQTT Bridge")
+        self.setWindowTitle("mavQT : MAVlink to MQTT bridge")
         self.setGeometry(200, 200, 1000, 700)
 
         self.mav_receiver = MAVLinkReceiver()
@@ -57,9 +57,8 @@ class MAVMQTTUI(QWidget):
 
         self.mqtt_client = None
         self.broker_process = None
-        self.latest_messages = {}        # Latest MAVLink messages by type
-        self.send_enabled = {}           # Checkbox state for sending messages
-
+        self.latest_messages = {}   
+        self.send_enabled = {}           
         self.continuous_timer = QTimer()
         self.continuous_timer.timeout.connect(self.send_continuous_messages)
         self.continuous_timer.start(100)  # Check every 100ms
@@ -141,7 +140,7 @@ class MAVMQTTUI(QWidget):
 
         self.setLayout(layout)
 
-        author_label = QLabel("GitHub: https://github.com/YourName")
+        author_label = QLabel("V 0.1 GitHub: https://github.com/rohith8272/mavQT")
         author_label.setStyleSheet("color: gray; font-size: 10pt;")
         layout.addWidget(author_label)
 
