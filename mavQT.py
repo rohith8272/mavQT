@@ -23,22 +23,50 @@ class MAVLinkReceiver(QObject):
         self.running = False
         self.master = None
 
-    def start_listening(self, ip, port):
-        self.running = True
-        threading.Thread(target=self._listen, args=(ip, port), daemon=True).start()
 
-    def _listen(self, ip, port):
-        self.master = mavutil.mavlink_connection(f'udp:{ip}:{port}')
-        while self.running:
-            try:
+    def start_listening(self, ip, port, protocol="udp"):
+        self.protocol = protocol.lower()
+        try:
+            # Create MAVLink connection once
+            if self.protocol == "udp":
+                connection_str = f'udp:{ip}:{port}'
+            else:
+                connection_str = f'tcp:{ip}:{port}'
+
+            print(f"[MAVLinkReceiver] Connecting via {connection_str}")
+            self.master = mavutil.mavlink_connection(connection_str)
+            if not self.master:
+                raise Exception("Failed to open MAVLink connection")
+
+            # Start listener thread
+            self.running = True
+            threading.Thread(target=self._listen, daemon=True).start()
+            return True
+
+        except Exception as e:
+            print(f"[MAVLinkReceiver] Connection error: {e}")
+            self.master = None
+            return False
+
+    def _listen(self):
+        try:
+            while self.running:
                 msg = self.master.recv_match(blocking=True, timeout=1)
                 if msg:
                     msg_dict = msg.to_dict()
                     msg_dict["_type"] = msg.get_type()
                     self.message_received.emit(msg_dict)
-            except Exception as e:
-                print("Error receiving MAVLink:", e)
-                break
+
+        except Exception as e:
+            print(f"[MAVLinkReceiver] Listening error: {e}")
+
+        finally:
+            if self.master:
+                self.master.close()
+                self.master = None
+            self.running = False
+            self.stopped.emit()  # notify UI if you connected it
+            print("[MAVLinkReceiver] Listener stopped.")
 
     def stop(self):
         self.running = False
@@ -71,18 +99,22 @@ class MAVMQTTUI(QWidget):
 
         # ---- UDP Setup ----
         udp_layout = QHBoxLayout()
+        # Protocol dropdown
+        self.protocol_select = QComboBox()
+        self.protocol_select.addItems(["UDP", "TCP"])
         self.udp_ip_input = QLineEdit("0.0.0.0")
         self.udp_port_input = QLineEdit("14550")
-        self.start_udp_btn = QPushButton("Start UDP Listener")
+        self.start_udp_btn = QPushButton("Start Listener")
         self.start_udp_btn.clicked.connect(self.toggle_udp)
-        udp_layout.addWidget(QLabel("UDP IP:"))
+        udp_layout.addWidget(self.protocol_select)
+        udp_layout.addWidget(QLabel("IP:"))
         udp_layout.addWidget(self.udp_ip_input)
         udp_layout.addWidget(QLabel("Port:"))
         udp_layout.addWidget(self.udp_port_input)
         udp_layout.addWidget(self.start_udp_btn)
         layout.addLayout(udp_layout)
 
-        # ---- Latest MAVLink messages ----
+      
         layout.addWidget(QLabel("Latest MAVLink Messages (check to send):"))
         self.mav_list = QListWidget()
         layout.addWidget(self.mav_list)
@@ -156,16 +188,26 @@ class MAVMQTTUI(QWidget):
         """
         self.setStyleSheet(dark_stylesheet)
 
-    # ---- UDP ----
+    # ---- UDP/TCP ----
     def toggle_udp(self):
         if self.mav_receiver.running:
             self.mav_receiver.stop()
-            self.start_udp_btn.setText("Start UDP Listener")
+            self.start_udp_btn.setText("Start Listener")
+            QMessageBox.information(self, "Disconnected", "Listener stopped successfully.")
         else:
             ip = self.udp_ip_input.text()
             port = int(self.udp_port_input.text())
-            self.mav_receiver.start_listening(ip, port)
-            self.start_udp_btn.setText("Stop UDP Listener")
+            protocol = self.protocol_select.currentText()  # Get selected protocol (UDP or TCP)
+
+            # Try starting the listener
+            success = self.mav_receiver.start_listening(ip, port, protocol=protocol.lower())
+
+            if success:
+                self.start_udp_btn.setText(f"Stop Listener")
+                QMessageBox.information(self, "Connected", f"Connected via {protocol} to {ip}:{port}")
+            else:
+                QMessageBox.warning(self, "Connection Failed", f"Could not connect via {protocol} to {ip}:{port}")
+
 
     def update_mav_messages(self, msg):
         msg_type = msg["_type"]
