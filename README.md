@@ -6,12 +6,18 @@
 
 ## Features
 
-- Connect to **UDP MAVLink streams** from drones.
+- Connect to **UDP/TCP MAVLink streams** from drones.
 - Subscribe and publish MQTT topics with **custom QoS levels**.
 ---
 
 ## Setup
 
+setup virtual env and install requirements.txt
+
 - On mission planner, set UDP, outbound on port 14550.
 - Subscribe and publish MQTT topics with **custom QoS levels**.
 ---
+
+
+## Build 
+pyinstaller --onefile --hidden-import=pymavlink --add-data "env/Lib/site-packages/pymavlink/message_definitions:pymavlink/message_definitions" mavQT.py

@@ -12,6 +12,14 @@ from PyQt6.QtCore import pyqtSignal, QObject, QTimer, Qt
 import paho.mqtt.client as mqtt
 from pymavlink import mavutil
 
+
+# PyInstaller onefile fix: path to message_definitions
+if getattr(sys, 'frozen', False):
+    MAVLINK_DEF_PATH = os.path.join(sys._MEIPASS, 'pymavlink', 'message_definitions')
+else:
+    # Running from Python
+    MAVLINK_DEF_PATH = None  # use default
+
 MAX_TOPIC_ITEMS = 20  # Limit for topics 
 
 # ------------------- MAVLink Receiver ------------------- #
@@ -65,7 +73,7 @@ class MAVLinkReceiver(QObject):
                 self.master.close()
                 self.master = None
             self.running = False
-            self.stopped.emit()  # notify UI if you connected it
+            self.stopped.emit()  
             print("[MAVLinkReceiver] Listener stopped.")
 
     def stop(self):
